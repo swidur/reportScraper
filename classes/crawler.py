@@ -1,9 +1,10 @@
-import selenium
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 import logging as log
 import time
+
+import selenium
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class Crawler:
@@ -61,13 +62,13 @@ class Crawler:
 
     def order_by_status(self):
         if self.is_running():
-            rapport_status = self.browserInstance.find_element_by_name("FFFOAXrapZwr")
+            report_status = self.browserInstance.find_element_by_name("FFFOAXrapZwr")
             if self.status == 0:
-                rapport_status.send_keys('-')
-                log.info('Filtered rapports by "all"')
+                report_status.send_keys('-')
+                log.info('Filtered reports by "all"')
             elif self.status == 1:
-                rapport_status.send_keys('z')
-                log.info('Filtered rapports by "not downloaded"')
+                report_status.send_keys('z')
+                log.info('Filtered reports by "not downloaded"')
             self.browserInstance.find_element_by_name('SEARCH_BUTTON').click()
 
     def get_source(self):
@@ -77,7 +78,8 @@ class Crawler:
         if self.is_running():
             log.info('Request next page')
             try:
-                WebDriverWait(self.browserInstance, 3).until(EC.presence_of_element_located((By.XPATH, "//input[@value='20 >> ']")))
+                WebDriverWait(self.browserInstance, 3).until(
+                    EC.presence_of_element_located((By.XPATH, "//input[@value='20 >> ']")))
                 self.browserInstance.find_element_by_xpath("//input[@value='20 >> ']").click()
                 log.info('Next page reached')
 
@@ -94,9 +96,9 @@ class Crawler:
                 if self.since <= row[1] <= self.till:
                     self.selected.append(row)
 
-            msg = 'There are total of {} rapports in between these dates'.format(len(self.selected))
+            msg = 'There are total of {} reports in between these dates'.format(len(self.selected))
             log.warning(msg)
-            self.down_selected()
+            self.down_selected(self.selected)
 
     def are_we_there(self):
         if self.since > (self.all_pages[-1][1]) or self.eol:
@@ -115,46 +117,37 @@ class Crawler:
             self.are_we_there()
             log.info('Checking again')
 
-
-
-    def down_selected(self):
-        selected = self.selected
+    def down_selected(self, selected):
         if len(selected) > 0 and self.is_running():
             counter = 0
             count = len(selected)
 
-            for raport in selected:
-                self.browserInstance.get(raport[2])
+            for report in selected:
+                self.browserInstance.get(report[2])
                 self.browserInstance.find_element_by_name("BUTX_NEXT").click()
-                msg = 'Waiting for rapport "{0}" from {1}'.format(raport[0], time.strftime("%Y-%m-%d", raport[1]))
+                msg = 'Waiting for report "{0}" from {1}'.format(report[0], time.strftime("%Y-%m-%d", report[1]))
                 log.info(msg)
 
                 try:
-                    WebDriverWait(self.browserInstance, 15).until(EC.presence_of_element_located((By.LINK_TEXT, "pobierz plik")))
+                    WebDriverWait(self.browserInstance, 15).until(
+                        EC.presence_of_element_located((By.LINK_TEXT, "pobierz plik")))
                     self.browserInstance.find_element_by_link_text("pobierz plik").click()
                     self.browserInstance.find_element_by_name("BUTX_FINISH").click()
                     counter += 1
-                    msg = 'Downloaded rapport {} out of {}'.format(counter, count)
+                    msg = 'Downloaded report {} out of {}'.format(counter, count)
                     log.warning(msg)
 
                 except selenium.common.exceptions.TimeoutException:
-                    msq = 'Waited for 60s, and still couldnt find "pobierz plik"'
+                    msq = 'Waited for 60 s, and still couldnt find "pobierz plik"'
                     log.error(msq)
 
-
-                if counter == count:
-                    # self.browser_methods.stop_browser()
-                    self.browserInstance.close()
-                    self.browserInstance.quit()
-
-                    msg = 'Download complete. {} file/s downloaded'.format(counter)
-
-                    log.warning(msg)
+            if counter == count:
+                self.close_browser()
+                msg = 'Download complete. {} file/s downloaded'.format(counter)
+                log.warning(msg)
 
 
         else:
             msg = 'No files for given dates or encountered unknown error'
             log.error(msg)
             self.close_browser()
-
-

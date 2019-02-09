@@ -1,12 +1,13 @@
 import time
+
 from bs4 import BeautifulSoup
-import logging as log
+
 
 class myParser:
     def __init__(self):
         pass
 
-    def get_data(self,source):
+    def get_data(self, source):
         self.source = BeautifulSoup(source, 'html.parser')
         daty = []
         nazwy = []
@@ -30,7 +31,4 @@ class myParser:
                     if (element.attrs['href'][:31]) == '../../user/komstatmed/ppzrapget':
                         linki.append('https://szoi.nfz.poznan.pl/ap-mzwi' + element.attrs['href'][5:])
 
-
-
         return list(zip(nazwy, daty, linki))
-
