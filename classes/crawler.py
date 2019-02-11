@@ -43,11 +43,14 @@ class Crawler:
             reader = Reader(self.reader_directory)
             reader_contents = reader.readFromCsv()
             if type(reader_contents) == bool:
-                raise TypeError
-            self.report_names = []
-
-            for line in reader_contents:
-                self.report_names.append(line[0])
+                msg = 'Reader encountered error with csv file. Consult logs about details - exiting now'
+                log.critical(msg)
+                print(msg)
+                self.close_browser()
+            else:
+                self.report_names = []
+                for line in reader_contents:
+                    self.report_names.append(line[0])
 
     def is_running(self):
         return self.browser.browserFlag
@@ -121,6 +124,8 @@ class Crawler:
             else:
                 log.critical('Unhandled situation while logging in')
                 self.close_browser()
+                return False
+
 
     def order_by_status(self):
         if self.is_running():
@@ -150,6 +155,7 @@ class Crawler:
                 log.debug('Run out of pages to load, set "end of list [self.eol] to 1"')
 
     def select(self):
+        start = time.time()
         if self.is_running():
             self.all_pages = self.parser.get_data(self.get_source())
             self.are_we_there()
@@ -166,6 +172,8 @@ class Crawler:
         msg = 'There are total of {} reports in between these dates'.format(len(self.selected))
         log.info(msg)
         print(msg)
+        stop = time.time()
+        log.info('Report lookup took: {0}s'.format(round(stop - start, 2)))
         self.down_selected(self.selected)
 
     def are_we_there(self):

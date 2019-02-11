@@ -3,6 +3,7 @@ from os import getcwd
 from sys import path
 
 from selenium import webdriver
+from selenium.webdriver.remote.remote_connection import LOGGER
 
 path.append(getcwd())
 
@@ -28,13 +29,23 @@ class myBrowser:
 
     def init_browser(self):
         log.debug('Creating browser instance')
+        service_args = None
+
+
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_experimental_option('prefs', {'download.default_directory': self.dl_dir})
         if self.headless == 1:
             chrome_options.add_argument('headless')
             log.debug('Chrome in headless mode')
+            LOGGER.setLevel(log.CRITICAL)
+            log.getLogger("urllib3").setLevel(log.CRITICAL)
+        else:
+            log.warning('DEBUG MODE: verbose logging + chromedriver.log in cwd')
+            LOGGER.setLevel(log.DEBUG)
+            log.getLogger("urllib3").setLevel(log.DEBUG)
+            service_args = ["--verbose", "--log-path=chromedriver.log"]
 
-        self.browserInstance = webdriver.Chrome(chrome_options=chrome_options)
+        self.browserInstance = webdriver.Chrome(chrome_options=chrome_options, service_args=service_args)
         self.enable_download_in_headless_chrome()
 
     def stop_browser(self):

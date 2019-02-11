@@ -27,7 +27,10 @@ class Main:
         self.downloadChromedriver()
         self.get_input()
 
+
     def get_input(self):
+        self.head = 1
+
         while True:
             self.username = input('Login: ')
             if 21 > len(self.username) > 4:
@@ -69,21 +72,18 @@ class Main:
             elif self.status.lower() in ('w', 'wszystkie'):
                 self.status = 0
                 break
-            self.invald_input(self.status)
-
-        while True:
-            self.head = input('Widoczność przeglądarki [t]ak/[n]ie: ')
-            if self.head.lower() in ('tak', 't'):
-                self.head = 0
-                break
-            elif self.head.lower() in ('nie', 'n'):
-                self.head = 1
-                break
-            elif self.head.lower() == 'debug':
+            elif self.status.lower() == 'n debug':
+                self.status = 1
                 self.head = 0
                 log.getLogger().setLevel('DEBUG')
                 break
-            self.invald_input(self.head)
+            elif self.status.lower() == 'w debug':
+                self.status = 0
+                self.head = 0
+                log.getLogger().setLevel('DEBUG')
+                break
+            self.invald_input(self.status)
+
 
         while True:
             self.fromfile = input('Pobierz raporty, które pominięto w innej sesji [t]ak/[n]ie: ')
@@ -147,7 +147,7 @@ class Main:
             log.error(msg)
             print(msg)
             try:
-                request.urlretrieve("https://chromedriver.storage.googleapis.com/2.43/chromedriver_win32.zip",
+                request.urlretrieve("https://chromedriver.storage.googleapis.com/2.46/chromedriver_win32.zip",
                                     "chromedriver.zip")
             except error.URLError:
                 msg = "Chromedriver could not be downloaded"
