@@ -34,16 +34,17 @@ class myBrowser:
 
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_experimental_option('prefs', {'download.default_directory': self.dl_dir})
+        LOGGER.setLevel(log.CRITICAL)
+        log.getLogger("urllib3").setLevel(log.CRITICAL)
         if self.headless == 1:
             chrome_options.add_argument('headless')
             log.debug('Chrome in headless mode')
-            LOGGER.setLevel(log.CRITICAL)
-            log.getLogger("urllib3").setLevel(log.CRITICAL)
+
         else:
             log.warning('DEBUG MODE: verbose logging + chromedriver.log in cwd')
-            LOGGER.setLevel(log.DEBUG)
-            log.getLogger("urllib3").setLevel(log.DEBUG)
-            service_args = ["--verbose", "--log-path=chromedriver.log"]
+
+            service_args = ["--log-path=chromedriver.log"]
+            # service_args = ["--verbose", "--log-path=chromedriver.log"]
 
         self.browserInstance = webdriver.Chrome(chrome_options=chrome_options, service_args=service_args)
         self.enable_download_in_headless_chrome()

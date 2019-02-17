@@ -14,14 +14,14 @@ class Reader:
             file = open(self.directory, mode='r', encoding='windows-1250')
             csv_reader = csv.reader(file, delimiter=';', lineterminator='\n')
             log.debug("File {0} opened successfully".format(self.directory))
-
         except FileNotFoundError:
             log.error("File: {0} not found".format(self.directory))
             return False
 
         counter = 0
-        if file == '':
-            if ';' in file:
+        if file != '':
+            if ';' in file.read():
+                file.seek(0)
                 for row in csv_reader:
                     if len(row[0]) > 0:
                         try:

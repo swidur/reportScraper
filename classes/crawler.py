@@ -59,7 +59,7 @@ class Crawler:
         log.debug('close_browser called')
         self.browser.stop_browser()
 
-    def check_condition(self, source_string, message=None, exit_on_success=True):
+    def check_condition(self, source_string, frame_name='tekst', message=None, exit_on_success=True):
         log.debug('Checking condition for: {0}'.format(source_string))
         if message is None:
             message = source_string
@@ -67,20 +67,22 @@ class Crawler:
         source = self.browserInstance.page_source
 
         if source_string not in source:
+            log.debug('Source string not found in source..')
             try:
-                self.browserInstance.switch_to.frame(self.browserInstance.find_element_by_name('tekst'))
+                self.browserInstance.switch_to.frame(self.browserInstance.find_element_by_name(frame_name))
                 source = self.browserInstance.page_source
 
                 if source_string not in source:
+                    log.debug('Source string not found in frame source')
                     return False
 
             except selenium.common.exceptions.NoSuchElementException:
+                log.debug('Frame not found')
                 return False
 
-        log.error(message)
-        print(message)
         if exit_on_success:
             self.close_browser()
+        log.debug(message + " Status: true")
         return True
 
     def login_szoi(self):
@@ -117,7 +119,7 @@ class Crawler:
             if self.check_condition('Konto zostało czasowo zablokowane'):
                 return False
             if self.check_condition('System: System zarządzania obiegiem informacji', 'User logged in successfully',
-                                    False):
+                                    exit_on_success=False):
                 self.browserInstance.get("https://szoi.nfz.poznan.pl/ap-mzwi/servlet/komstatmed/raport")
                 return True
 
@@ -125,7 +127,6 @@ class Crawler:
                 log.critical('Unhandled situation while logging in')
                 self.close_browser()
                 return False
-
 
     def order_by_status(self):
         if self.is_running():
@@ -145,7 +146,7 @@ class Crawler:
         if self.is_running():
             log.debug('Request next page')
             try:
-                WebDriverWait(self.browserInstance, 3).until(
+                WebDriverWait(self.browserInstance, 5).until(
                     EC.presence_of_element_located((By.XPATH, "//input[@value='20 >> ']")))
                 self.browserInstance.find_element_by_xpath("//input[@value='20 >> ']").click()
                 log.debug('Next page reached')
@@ -195,16 +196,35 @@ class Crawler:
 
     def down_selected(self, selected):
         if len(selected) > 0 and self.is_running():
+
             counter = 0
             time_sum = 0
             count = len(selected)
 
             for report in selected:
                 start = time.time()
-                self.browserInstance.get(report[2])
-                self.browserInstance.find_element_by_name("BUTX_NEXT").click()
-                msg = 'Waiting for report "{0}" from {1}'.format(report[0], time.strftime("%Y-%m-%d", report[1]))
-                log.debug(msg)
+
+                tries = 0
+                while tries < 60:
+                    self.browserInstance.get(report[2])
+                    if self.check_condition('(1) Pobranie raportu zwrotnego', exit_on_success=False):
+                        break
+                    tries += 1
+
+                try:
+                    WebDriverWait(self.browserInstance, self.timeout).until(
+                        EC.presence_of_element_located((By.NAME, "BUTX_NEXT")))
+
+                    self.browserInstance.find_element_by_name("BUTX_NEXT").click()
+                    msg = 'Waiting for report "{0}" from {1}'.format(report[0], time.strftime("%Y-%m-%d", report[1]))
+                    log.debug(msg)
+
+                except selenium.common.exceptions.TimeoutException:
+                    msg = 'Waited for "Dalej" button for {0}'.format(self.timeout)
+                    log.error(msg)
+                    print(msg)
+                    self.not_downloaded.append(report)
+                    continue
 
                 try:
                     WebDriverWait(self.browserInstance, self.timeout).until(
@@ -223,17 +243,18 @@ class Crawler:
 
 
                 except selenium.common.exceptions.TimeoutException:
-                    log.error('Waited for {0}s for {1}. Moving on to the next'.format(self.timeout, report[0]))
+                    msg = 'Waited for {0}s for {1}. Moving on to the next'.format(self.timeout, report[0])
+                    log.error(msg)
                     print(msg)
                     self.not_downloaded.append(report)
 
                 except selenium.common.exceptions.NoSuchElementException:
                     log.error('Element not found')
-                    print(msg)
                     self.not_downloaded.append(report)
 
             self.close_browser()
-            msg = 'Download complete. {0} file/s downloaded. Mean time: {1}'.format(counter, time_sum / counter)
+            msg = 'Download complete. {0} file/s downloaded. Mean time: {1}'.format(counter,
+                                                                                    round(time_sum / counter, 2))
             print(msg)
             log.info(msg)
 
@@ -241,8 +262,9 @@ class Crawler:
                 self.downloaded_writer.loadContent(self.downloaded)
                 self.downloaded_writer.writeToCsv()
             if self.not_downloaded:
-                log.warning("Some files were not downloaded, check {0} in {1}".format(self.not_downloaded_filename,
-                                                                                      self.directory))
+                msg = "Some files were not downloaded, check {0} in {1}".format(self.not_downloaded_filename,
+                                                                                self.directory)
+                log.warning(msg)
                 print(msg)
                 self.not_downloaded_writer.loadContent(self.not_downloaded)
                 self.not_downloaded_writer.writeToCsv()
