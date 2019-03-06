@@ -27,7 +27,6 @@ class Main:
         self.downloadChromedriver()
         self.get_input()
 
-
     def get_input(self):
         self.head = 1
 
@@ -83,7 +82,6 @@ class Main:
                 log.getLogger().setLevel('DEBUG')
                 break
             self.invald_input(self.status)
-
 
         while True:
             self.fromfile = input('Pobierz raporty, które pominięto w innej sesji [t]ak/[n]ie: ')

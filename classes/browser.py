@@ -31,22 +31,21 @@ class myBrowser:
         log.debug('Creating browser instance')
         service_args = None
 
-
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_experimental_option('prefs', {'download.default_directory': self.dl_dir})
         LOGGER.setLevel(log.CRITICAL)
         log.getLogger("urllib3").setLevel(log.CRITICAL)
-        if self.headless == 1:
+
+        if self.headless:
+            chrome_options.add_argument('--log-level=3')
             chrome_options.add_argument('headless')
             log.debug('Chrome in headless mode')
 
         else:
             log.warning('DEBUG MODE: verbose logging + chromedriver.log in cwd')
-
             service_args = ["--log-path=chromedriver.log"]
-            # service_args = ["--verbose", "--log-path=chromedriver.log"]
 
-        self.browserInstance = webdriver.Chrome(chrome_options=chrome_options, service_args=service_args)
+        self.browserInstance = webdriver.Chrome(options=chrome_options, service_args=service_args)
         self.enable_download_in_headless_chrome()
 
     def stop_browser(self):

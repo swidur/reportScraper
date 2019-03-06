@@ -1,3 +1,4 @@
+import copy
 import csv
 import logging as log
 import os
@@ -35,4 +36,17 @@ class Writer:
         log.debug('File closed successfully')
 
     def loadContent(self, content):
-        self.contents = content
+        self.contents = copy.deepcopy(content)
+
+    def deleteSelf(self):
+        try:
+            os.remove("{0}\\{1}".format(self.directory, self.filename))
+            log.info('{0} file deleted'.format(self.filename))
+        except FileNotFoundError:
+            log.error('File not found - can\'t be deleted')
+        except PermissionError:
+            log.error('PermissionError while deleting file')
+        except:
+            msg = 'Unhandled exception while deleting file'
+            log.error(msg)
+            print(msg)

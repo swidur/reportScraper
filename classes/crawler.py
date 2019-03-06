@@ -59,7 +59,7 @@ class Crawler:
         log.debug('close_browser called')
         self.browser.stop_browser()
 
-    def check_condition(self, source_string, frame_name='tekst', message=None, exit_on_success=True):
+    def check_condition(self, source_string, frame_name='tekst', message=None, exit_on_success=True, log_as_error=True):
         log.debug('Checking condition for: {0}'.format(source_string))
         if message is None:
             message = source_string
@@ -82,7 +82,12 @@ class Crawler:
 
         if exit_on_success:
             self.close_browser()
-        log.debug(message + " Status: true")
+
+        if log_as_error:
+            print(message)
+            log.error(message)
+        else:
+            log.info(message)
         return True
 
     def login_szoi(self):
@@ -118,7 +123,8 @@ class Crawler:
                 return False
             if self.check_condition('Konto zostało czasowo zablokowane'):
                 return False
-            if self.check_condition('System: System zarządzania obiegiem informacji', 'User logged in successfully',
+            if self.check_condition('System: System zarządzania obiegiem informacji',
+                                    message='User logged in successfully',
                                     exit_on_success=False):
                 self.browserInstance.get("https://szoi.nfz.poznan.pl/ap-mzwi/servlet/komstatmed/raport")
                 return True
@@ -194,36 +200,40 @@ class Crawler:
             log.debug('Appended new data to all_pages')
             self.are_we_there()
 
+
     def down_selected(self, selected):
         if len(selected) > 0 and self.is_running():
+            msg = 'Beginning download..'
+            print(msg)
+            log.info(msg)
 
             counter = 0
             time_sum = 0
             count = len(selected)
 
-            for report in selected:
+            for x in range(0, len(selected)):
                 start = time.time()
-
-                tries = 0
-                while tries < 60:
-                    self.browserInstance.get(report[2])
-                    if self.check_condition('(1) Pobranie raportu zwrotnego', exit_on_success=False):
+                attempt = 0
+                while attempt < 60:
+                    self.browserInstance.get(selected[0][2])
+                    if self.check_condition('(1) Pobranie raportu zwrotnego',
+                                            message='Report page reached on {0} attempt'.format(attempt + 1),
+                                            exit_on_success=False, log_as_error=False):
                         break
-                    tries += 1
+                    attempt += 1
 
                 try:
                     WebDriverWait(self.browserInstance, self.timeout).until(
                         EC.presence_of_element_located((By.NAME, "BUTX_NEXT")))
 
                     self.browserInstance.find_element_by_name("BUTX_NEXT").click()
-                    msg = 'Waiting for report "{0}" from {1}'.format(report[0], time.strftime("%Y-%m-%d", report[1]))
+                    msg = 'Waiting for report "{0}" from {1}'.format(selected[0][0],
+                                                                     time.strftime("%Y-%m-%d", selected[0][1]))
                     log.debug(msg)
 
                 except selenium.common.exceptions.TimeoutException:
                     msg = 'Waited for "Dalej" button for {0}'.format(self.timeout)
                     log.error(msg)
-                    print(msg)
-                    self.not_downloaded.append(report)
                     continue
 
                 try:
@@ -237,20 +247,23 @@ class Crawler:
                     counter += 1
                     msg = 'Downloaded report {0} out of {1}. Action took: {2}'.format(counter, count,
                                                                                       download_time)
+
                     print(msg)
                     log.warning(msg)
-                    self.downloaded.append(report)
-
+                    self.downloaded.append(selected[0])
+                    selected.pop(0)
+                    self.not_downloaded = selected
 
                 except selenium.common.exceptions.TimeoutException:
-                    msg = 'Waited for {0}s for {1}. Moving on to the next'.format(self.timeout, report[0])
+                    msg = 'Waited for {0}s for {1}. Moving on to the next'.format(self.timeout, selected[0][0])
                     log.error(msg)
                     print(msg)
-                    self.not_downloaded.append(report)
 
                 except selenium.common.exceptions.NoSuchElementException:
                     log.error('Element not found')
-                    self.not_downloaded.append(report)
+
+                self.not_downloaded_writer.loadContent(self.not_downloaded)
+                self.not_downloaded_writer.writeToCsv()
 
             self.close_browser()
             msg = 'Download complete. {0} file/s downloaded. Mean time: {1}'.format(counter,
@@ -258,17 +271,20 @@ class Crawler:
             print(msg)
             log.info(msg)
 
+            # if any reports were downloaded write to file
             if self.downloaded:
                 self.downloaded_writer.loadContent(self.downloaded)
                 self.downloaded_writer.writeToCsv()
-            if self.not_downloaded:
+
+            # if all elements were poped from list delete file containing not downloaded reports
+            if not self.selected:
+                self.not_downloaded_writer.deleteSelf()
+
+            if len(self.selected) > 0:
                 msg = "Some files were not downloaded, check {0} in {1}".format(self.not_downloaded_filename,
                                                                                 self.directory)
                 log.warning(msg)
                 print(msg)
-                self.not_downloaded_writer.loadContent(self.not_downloaded)
-                self.not_downloaded_writer.writeToCsv()
-
 
         else:
             msg = 'No files for given dates or encountered unknown error'
